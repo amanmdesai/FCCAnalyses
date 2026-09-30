@@ -60,6 +60,12 @@ class ExclusiveJetClusteringHelper:
         # get the jets out of the struct
         self.definition[jet] = "JetClusteringUtils::get_pseudoJets({})".format(_jet)
 
+        # sqrt(d_{n,n+1}): merging scale for the recombination going from n+1 to n jets
+        for n in range(1, njets + 1):
+            self.definition["dmerge{}{}{}".format(n, n + 1, self.tag)] = (
+                "float(TMath::Sqrt(JetClusteringUtils::get_exclusive_dmerge({}, {})))".format(_jet, n)
+            )
+
         # get the jets constituents out of the struct
         self.definition[_jetc] = "JetClusteringUtils::get_constituents({})".format(_jet)
 
@@ -88,4 +94,5 @@ class ExclusiveJetClusteringHelper:
 
         out = list(self.jet_obs.values())
         out += [obs for obs in self.definition.keys() if "event_" in obs]
+        out += [obs for obs in self.definition.keys() if "dmerge" in obs]
         return out
