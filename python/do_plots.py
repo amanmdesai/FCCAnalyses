@@ -63,6 +63,23 @@ def formatStatUncHist(hists, name, hstyle=3254):
 
 
 # _____________________________________________________________________________
+def fill_legend(leg: Any,
+                entries: list[tuple[Any, str, str]],
+                two_columns: bool):
+    '''
+    Add the entries to the legend. With two columns, the full list is split in
+    two halves, so that it reads top to bottom in the first column and then
+    continues in the second one.
+    '''
+    if two_columns:
+        nrows = (len(entries) + 1) // 2
+        entries = [entries[i + shift] for i in range(nrows)
+                   for shift in (0, nrows) if i + shift < len(entries)]
+    for hist, label, option in entries:
+        leg.AddEntry(hist, label, option)
+
+
+# _____________________________________________________________________________
 def get_minmax_range(histos: list[Any],
                      xmin: float,
                      xmax: float):
@@ -298,47 +315,25 @@ def runPlots(config: dict[str, Any],
              hbackgrounds,
              extralab):
 
-    # Below are settings for separate signal and background legends
+    # Below are settings for the legend, optionally split in two columns
+    nentries = len(hbackgrounds) + len(hsignal)
     if config['split_leg']:
-        legsize = 0.04 * (len(hsignal))
-        legsize2 = 0.04 * (len(hbackgrounds))
-        leg = ROOT.TLegend(0.15, 0.60 - legsize, 0.50, 0.62)
-        leg2 = ROOT.TLegend(0.60, 0.60 - legsize2, 0.88, 0.62)
-
-        if config['leg_position'][0] is not None and \
-                config['leg_position'][2] is not None:
-            leg.SetX1(config['leg_position'][0])
-            leg.SetX2((config['leg_position'][0] +
-                       config['leg_position'][2]) / 2)
-            leg2.SetX2((config['leg_position'][0] +
-                        config['leg_position'][2]) / 2)
-            leg2.SetX2(config['leg_position'][0])
-        if config['leg_position'][1] is not None:
-            leg.SetY1(config['leg_position'][1])
-            leg2.SetY1(config['leg_position'][1])
-        if config['leg_position'][3] is not None:
-            leg.SetY2(config['leg_position'][3])
-            leg2.SetY2(config['leg_position'][3])
-
-        leg2.SetFillColor(0)
-        leg2.SetFillStyle(0)
-        leg2.SetLineColor(0)
-        leg2.SetShadowColor(10)
-        leg2.SetTextSize(config['legend_text_size'])
-        leg2.SetTextFont(42)
+        legsize = 0.04 * ((nentries + 1) // 2)
+        leg = ROOT.TLegend(0.43, 0.86 - legsize, 0.96, 0.88)
+        leg.SetNColumns(2)
     else:
-        legsize = 0.04 * (len(hbackgrounds) + len(hsignal))
+        legsize = 0.04 * nentries
         leg = ROOT.TLegend(0.68, 0.86 - legsize, 0.96, 0.88)
-        leg2 = None
+    leg2 = None
 
-        if config['leg_position'][0] is not None:
-            leg.SetX1(config['leg_position'][0])
-        if config['leg_position'][1] is not None:
-            leg.SetY1(config['leg_position'][1])
-        if config['leg_position'][2] is not None:
-            leg.SetX2(config['leg_position'][2])
-        if config['leg_position'][3] is not None:
-            leg.SetY2(config['leg_position'][3])
+    if config['leg_position'][0] is not None:
+        leg.SetX1(config['leg_position'][0])
+    if config['leg_position'][1] is not None:
+        leg.SetY1(config['leg_position'][1])
+    if config['leg_position'][2] is not None:
+        leg.SetX2(config['leg_position'][2])
+    if config['leg_position'][3] is not None:
+        leg.SetY2(config['leg_position'][3])
 
     leg.SetFillColor(0)
     leg.SetFillStyle(0)
@@ -347,13 +342,11 @@ def runPlots(config: dict[str, Any],
     leg.SetTextSize(config['legend_text_size'])
     leg.SetTextFont(42)
 
-    for b in hbackgrounds:
-        if config['split_leg']:
-            leg2.AddEntry(hbackgrounds[b][0], script_module.legend[b], "f")
-        else:
-            leg.AddEntry(hbackgrounds[b][0], script_module.legend[b], "f")
-    for s in hsignal:
-        leg.AddEntry(hsignal[s][0], script_module.legend[s], "l")
+    entries = [(hbackgrounds[b][0], script_module.legend[b], "f")
+               for b in hbackgrounds]
+    entries += [(hsignal[s][0], script_module.legend[s], "l")
+                for s in hsignal]
+    fill_legend(leg, entries, config['split_leg'])
 
     yields = {}
     for s in hsignal:
@@ -454,18 +447,10 @@ def runPlotsHistmaker(config: dict[str, Any],
     else:
         plotStatUnc = False
 
-    # Below are settings for separate signal and background legends
+    # Below are settings for the legend, optionally split in two columns
     if splitLeg:
-        legsize = 0.04 * (len(hsignal))
-        legsize2 = 0.04 * (len(hbackgrounds))
-        legCoord = [0.15, 0.60 - legsize, 0.50, 0.62]
-        leg2 = ROOT.TLegend(0.60, 0.60 - legsize2, 0.88, 0.62)
-        leg2.SetFillColor(0)
-        leg2.SetFillStyle(0)
-        leg2.SetLineColor(0)
-        leg2.SetShadowColor(10)
-        leg2.SetTextSize(config['legend_text_size'])
-        leg2.SetTextFont(42)
+        legsize = 0.04 * ((len(hbackgrounds) + len(hsignal) + 1) // 2)
+        legCoord = [0.43, 0.86 - legsize, 0.96, 0.88]
     else:
         legsize = 0.04*(len(hbackgrounds)+len(hsignal))
         legCoord = [0.68, 0.86 - legsize, 0.96, 0.88]
@@ -474,7 +459,7 @@ def runPlotsHistmaker(config: dict[str, Any],
         except AttributeError:
             LOGGER.debug('No legCoord, using default one...')
             legCoord = [0.68, 0.86-legsize, 0.96, 0.88]
-        leg2 = None
+    leg2 = None
 
     leg = ROOT.TLegend(
         (config['leg_position'][0]
@@ -496,14 +481,13 @@ def runPlotsHistmaker(config: dict[str, Any],
     leg.SetShadowColor(10)
     leg.SetTextSize(config['legend_text_size'])
     leg.SetTextFont(42)
+    if splitLeg:
+        leg.SetNColumns(2)
 
-    for b in hbackgrounds:
-        if splitLeg:
-            leg2.AddEntry(hbackgrounds[b][0], param.legend[b], "f")
-        else:
-            leg.AddEntry(hbackgrounds[b][0], param.legend[b], "f")
-    for s in hsignal:
-        leg.AddEntry(hsignal[s][0], param.legend[s], "l")
+    entries = [(hbackgrounds[b][0], param.legend[b], "f")
+               for b in hbackgrounds]
+    entries += [(hsignal[s][0], param.legend[s], "l") for s in hsignal]
+    fill_legend(leg, entries, splitLeg)
 
     yields = {}
     for s in hsignal:
@@ -750,7 +734,10 @@ def draw_plot(config: dict[str, Any],
         elif hStackBkg.GetNhists() == 0:
             ymin_, ymax_ = get_minmax_range(hStackSig.GetHists(), xmin, xmax)
     if ymin == -1:
-        ymin = ymin_*0.1 if plot_params['yaxis'] == 'log' else 0
+        if plot_params['yaxis'] == 'log':
+            ymin = 1 if plot_params['stack-sig'] == 'nostack' else ymin_*0.1
+        else:
+            ymin = 0
     if ymax == -1:
         ymax = ymax_*1000. if plot_params['yaxis'] == 'log' else 1.4*ymax_
     if plot_params['yaxis'] == 'log':
